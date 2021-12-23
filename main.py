@@ -12,20 +12,63 @@ from tqdm import tqdm
 import pickle
 from yellowbrick.regressor import PredictionError
 from pandas_profiling import ProfileReport
+import pdb
+import matplotlib
+matplotlib.use( 'tkagg' )
 
 RANDOM_FOREST_REGRESSOR_FILENAME = 'random_forest_regressor.sav'
 DECISION_TREE_REGRESSOR_FILENAME = 'decision_tree_regressor.sav'
 SUPPORT_VECTOR_MACHINE_FILENAME = 'svm_regressor.sav'
-
+# tomer.porat@outlook.com
 
 # loading the whole dataset from the given csv file.
-def load_dataset(file_path):
+def load_and_analyze_dataset(file_path):
   df = pd.read_csv(file_path)
-  profile = ProfileReport(df, minimal=True)
+
+  # Giving an insight about the dataset using the following lines.
+  print('Dataset shape: ', df.shape)
+  print('Dataset information: ', df.info())
+  print('Dataset spreadness: ')
+  print(df.describe())
+
+  feature_names = df.columns.values.tolist()
+  feature_names.remove('N Values') 
+
+  # profile = ProfileReport(df, minimal=True)
 
   # Uncomment the following lines for EDA. It will take some time for execution of below 2 lines.
   # profile.to_file(output_file="dataset_report.html")
   # profile.to_file(output_file="dataset_report.json")
+
+  return df, feature_names
+
+
+# finding and removing duplicates from each column.
+def remove_duplicates(df):
+  duplicates = df.duplicated()
+
+  if duplicates.sum() != 0:  
+    df.drop_duplicates(inplace=True)
+
+  return df
+
+
+# Removing the rows containing any missing value.
+def remove_missing_values(df):
+  df = df.dropna(axis=0, how='any')
+
+  return df
+
+
+# finding and removing outliers from each column.
+def remove_outliers(df):
+  feature_columns = df.columns.values.tolist()[3:]
+
+  for feature_column in feature_columns:
+    lower_bound = df[feature_column].quantile(0.01)
+    upper_bound = df[feature_column].quantile(0.99)
+
+    [df[(df[feature_column] < upper_bound) & (df[feature_column] > lower_bound)]]
 
   return df
 
@@ -43,7 +86,7 @@ def dataset_splitting(df):
 
 
 # Applying feature selection on the dataset.
-def feature_selection(x_train, y_train, x_test):
+def feature_selection(x_train, y_train, x_test, feature_names):
   # selecting the best k number of features by change k parameter.
   fs = SelectKBest(score_func=f_regression, k=350)
   fs.fit(x_train, y_train)
@@ -53,6 +96,17 @@ def feature_selection(x_train, y_train, x_test):
 
   for i in range(len(fs.scores_)):
     print('Feature %d: %f' % (i, fs.scores_[i]))
+
+  selected_k_features = []
+
+  mask = fs.get_support()
+
+  for is_selected, feature in zip(mask, feature_names):
+    if is_selected:
+        selected_k_features.append(feature)
+
+  print('selected features: ')
+  print(selected_k_features)
 
   return x_train_fs, x_test_fs
 
@@ -123,14 +177,19 @@ def plot_prediction_error(x_test, y_test, regressor):
 
 
 
-df = load_dataset('Meanspectra.csv')
+df, feature_names = load_and_analyze_dataset('Meanspectra.csv')
+
+df = remove_duplicates(df)
+df = remove_missing_values(df)
+df = remove_outliers(df)
+
 x_train, y_train, x_test, y_test = dataset_splitting(df)
-x_train, x_test = feature_selection(x_train, y_train, x_test)
+x_train, x_test = feature_selection(x_train, y_train, x_test, feature_names)
 
 # Uncomment one of the following commented model lines to for training. 
 # model = decision_tree_regressor(x_train, y_train)
-# model = random_forest_regressor(x_train, y_train)
-model = support_vector_machine_regressor(x_train, y_train)
+model = random_forest_regressor(x_train, y_train)
+# model = support_vector_machine_regressor(x_train, y_train)
 
 model_evaluation(x_test, y_test, model)
 plot_prediction_error(x_test, y_test, model)
