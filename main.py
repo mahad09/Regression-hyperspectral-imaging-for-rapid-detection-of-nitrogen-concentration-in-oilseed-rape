@@ -1,7 +1,5 @@
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-from datetime import datetime
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVR
@@ -10,13 +8,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import cross_val_score, KFold
 from sklearn.feature_selection import f_regression, SelectKBest
 from sklearn.metrics import mean_absolute_error, explained_variance_score, mean_squared_error, r2_score, roc_auc_score, plot_roc_curve, RocCurveDisplay
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.wrappers.scikit_learn import KerasRegressor
 from tqdm import tqdm
 import pickle
-import pdb
-import seaborn as sns
 from yellowbrick.regressor import PredictionError
 from pandas_profiling import ProfileReport
 
@@ -25,16 +18,20 @@ DECISION_TREE_REGRESSOR_FILENAME = 'decision_tree_regressor.sav'
 SUPPORT_VECTOR_MACHINE_FILENAME = 'svm_regressor.sav'
 
 
+# loading the whole dataset from the given csv file.
 def load_dataset(file_path):
   df = pd.read_csv(file_path)
   profile = ProfileReport(df, minimal=True)
 
+  # Uncomment the following lines for EDA. It will take some time for execution of below 2 lines.
   # profile.to_file(output_file="dataset_report.html")
   # profile.to_file(output_file="dataset_report.json")
 
   return df
 
 
+# The dataset is splitted based on the 'Dataset' column. 'Dataset=1' goes to training set and
+# the 'Dataset=0' goes into test set. 
 def dataset_splitting(df):
   x_train = df.loc[df['Dataset']==1].iloc[:, df.columns!='N Values'].values
   x_test = df.loc[df['Dataset']==0].iloc[:, df.columns!='N Values'].values
@@ -45,6 +42,7 @@ def dataset_splitting(df):
   return x_train, y_train, x_test, y_test
 
 
+# Applying feature selection on the dataset.
 def feature_selection(x_train, y_train, x_test):
   # selecting the best k number of features by change k parameter.
   fs = SelectKBest(score_func=f_regression, k=350)
@@ -53,12 +51,8 @@ def feature_selection(x_train, y_train, x_test):
   x_train_fs = fs.transform(x_train)
   x_test_fs = fs.transform(x_test)
 
-  # for i in range(len(fs.scores_)):
-  #   print('Feature %d: %f' % (i, fs.scores_[i]))
-
-  # uncomment the lines to plot the scores of each feature
-  # plt.bar([i for i in range(len(fs.scores_))], fs.scores_)
-  # plt.show()
+  for i in range(len(fs.scores_)):
+    print('Feature %d: %f' % (i, fs.scores_[i]))
 
   return x_train_fs, x_test_fs
 
@@ -71,7 +65,7 @@ def decision_tree_regressor(x_train, y_train):
 
   regressor.fit(x_train, y_train)
 
-  # pickle.dump(regressor, open(DECISION_TREE_REGRESSOR_FILENAME, 'wb'))
+  pickle.dump(regressor, open(DECISION_TREE_REGRESSOR_FILENAME, 'wb'))
 
   return regressor
 
@@ -84,7 +78,7 @@ def random_forest_regressor(x_train, y_train):
 
   regressor.fit(x_train, y_train)
 
-  # pickle.dump(regressor, open(RANDOM_FOREST_REGRESSOR_FILENAME, 'wb'))
+  pickle.dump(regressor, open(RANDOM_FOREST_REGRESSOR_FILENAME, 'wb'))
 
   return regressor
 
@@ -97,14 +91,12 @@ def support_vector_machine_regressor(x_train, y_train):
 
   regressor.fit(x_train, y_train)
 
-  # pickle.dump(regressor, open(SUPPORT_VECTOR_MACHINE_FILENAME, 'wb'))
+  pickle.dump(regressor, open(SUPPORT_VECTOR_MACHINE_FILENAME, 'wb'))
 
   return regressor
 
 
 def model_evaluation(x_test, y_test, regressor):
-  # regressor = pickle.load(open(filename, 'rb'))
-
   y_predict = regressor.predict(x_test)
 
   accuracy = regressor.score(x_test, y_test)
@@ -134,9 +126,12 @@ def plot_prediction_error(x_test, y_test, regressor):
 df = load_dataset('Meanspectra.csv')
 x_train, y_train, x_test, y_test = dataset_splitting(df)
 x_train, x_test = feature_selection(x_train, y_train, x_test)
+
+# Uncomment one of the following commented model lines to for training. 
 # model = decision_tree_regressor(x_train, y_train)
 # model = random_forest_regressor(x_train, y_train)
 model = support_vector_machine_regressor(x_train, y_train)
+
 model_evaluation(x_test, y_test, model)
 plot_prediction_error(x_test, y_test, model)
 
