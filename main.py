@@ -18,7 +18,7 @@ import pickle
 import pdb
 import seaborn as sns
 from yellowbrick.regressor import PredictionError
-
+from pandas_profiling import ProfileReport
 
 RANDOM_FOREST_REGRESSOR_FILENAME = 'random_forest_regressor.sav'
 DECISION_TREE_REGRESSOR_FILENAME = 'decision_tree_regressor.sav'
@@ -27,12 +27,12 @@ SUPPORT_VECTOR_MACHINE_FILENAME = 'svm_regressor.sav'
 
 def load_dataset(file_path):
   df = pd.read_csv(file_path)
+  profile = ProfileReport(df, minimal=True)
+
+  # profile.to_file(output_file="dataset_report.html")
+  # profile.to_file(output_file="dataset_report.json")
 
   return df
-
-
-def visualize_dataset(df):
-  sns.set_theme(color_codes=True)
 
 
 def dataset_splitting(df):
@@ -123,22 +123,21 @@ def model_evaluation(x_test, y_test, regressor):
   print('Mean squared error: %.3f' % mse)
 
 
-def visualize_model_performance(x_test, y_test, regressor):
+
+def plot_prediction_error(x_test, y_test, regressor):
   visualizer = PredictionError(regressor)
   visualizer.score(x_test, y_test)
-  visualizer.show()
-
+  visualizer.show(outpath=visualizer.name)
 
 
 
 df = load_dataset('Meanspectra.csv')
-visualize_dataset(df)
 x_train, y_train, x_test, y_test = dataset_splitting(df)
 x_train, x_test = feature_selection(x_train, y_train, x_test)
 # model = decision_tree_regressor(x_train, y_train)
-model = random_forest_regressor(x_train, y_train)
-# model = support_vector_machine_regressor(x_train, y_train)
+# model = random_forest_regressor(x_train, y_train)
+model = support_vector_machine_regressor(x_train, y_train)
 model_evaluation(x_test, y_test, model)
-visualize_model_performance(x_test, y_test, model)
+plot_prediction_error(x_test, y_test, model)
 
 
